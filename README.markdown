@@ -117,7 +117,9 @@ Sollte es trotzdem Probleme oder Fragen geben, helfe ich gerne wenn du einen [Is
 
 ### Parameter für ESP32
 Wichtig sind die Einstellungen für den ESP32. Mein Program ist durch die Grafiken recht umfangreich geworden, so weichen meine Einstellungen vom Standard ab. Wichtig ist folgender Parameter:  
-> Partition Scheme: "Minimal SPIFFS (1,9MB App with OTA/190KB SPIFFS)"  
+> Partition Scheme: "Minimal SPIFFS (1,9MB App with OTA/190KB SPIFFS)" 
+
+**Aktuell funktioniert nur das ESP Library in der Version 1.x die Version 2.x sorgt für Probleme, herz08 22.01.2022
 
 Hier noch ein Screenshot von meinen Einstellungen:  
 <img width="463" alt="image" src="https://user-images.githubusercontent.com/19279623/121787937-8975dd00-cbc9-11eb-993e-1ccda0750905.png">  
