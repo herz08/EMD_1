@@ -222,7 +222,7 @@ void checkStartScreen(){
       screenSaveActiv = OFF;
       drawScreen = NEW;     
       backlightON();
-      Serial.println("Screen Save      :  Deaktiv");
+      Serial.println("Screen Save      :  Inaktiv");
     }
 }
 #endif // __FUNKTION_H_
