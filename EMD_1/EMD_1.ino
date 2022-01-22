@@ -283,16 +283,16 @@ void loop() {
           tft.fillRect(106, 172, 122, 40, ILI9341_WHITE);
           printLcdText(114, 189, ILI9341_DARKGREY, FontSansSerif_plain_11,"Lichtsensor");
           if(readPIRuse() == 1)printLcdText(114, 201, ILI9341_DARKGREY, FontSansSerif_plain_11,"PIR Aktiv");
-          else printLcdText(114, 201, ILI9341_DARKGREY, FontSansSerif_plain_11,"PIR Deaktiv");
+          else printLcdText(114, 201, ILI9341_DARKGREY, FontSansSerif_plain_11,"PIR Inaktiv");
           tft.fillRect(106, 220, 122, 40, ILI9341_WHITE);
           printLcdText(114, 232, ILI9341_DARKGREY, FontSansSerif_plain_11,"Bildschirm-");
           printLcdText(114, 244, ILI9341_DARKGREY, FontSansSerif_plain_11,"schoner");
-          if(readScreenSave() < 1)printLcdText(114, 256, ILI9341_DARKGREY, FontSansSerif_plain_11,"Deaktiv");
+          if(readScreenSave() < 1)printLcdText(114, 256, ILI9341_DARKGREY, FontSansSerif_plain_11,"Inaktiv");
           else printLcdText(114, 256, ILI9341_DARKGREY, FontSansSerif_plain_11,"%i Minuten", readScreenSave());
           tft.fillRect(106, 268, 122, 40, ILI9341_WHITE);
           printLcdText(114, 280, ILI9341_DARKGREY, FontSansSerif_plain_11,"DHT on Screen");
           if(readDhtPut() == 0)printLcdText(114, 292, ILI9341_DARKGREY, FontSansSerif_plain_11,"Aktiv");
-          else printLcdText(114, 292, ILI9341_DARKGREY, FontSansSerif_plain_11,"Deaktiv");
+          else printLcdText(114, 292, ILI9341_DARKGREY, FontSansSerif_plain_11,"Inaktiv");
         }
         break; // case SCREEN_EINST
       }
