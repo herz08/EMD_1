@@ -17,21 +17,21 @@ ModbusIP mb;  //ModbusIP
 IPAddress mbIP_E3DC;
 int mbDelay = 45;
 
+union DoubleRegister
+{
+    int32_t  dr;    // occupies 4 bytes
+    uint16_t sr[2]; // occupies 4 bytes
+};
+
+DoubleRegister registerBuffer;
 uint16_t magicbyte = 0;
-uint16_t solarPowerReg1        = 0;
-uint16_t solarPowerReg2        = 0;
-uint16_t gridPowerReg1         = 0;
-uint16_t gridPowerReg2         = 0;
-uint16_t batPowerReg1          = 0;
-uint16_t batPowerReg2          = 0;
-uint16_t homePowerReg1         = 0;
-uint16_t homePowerReg2         = 0;
-uint16_t extPowerReg1          = 0;
-uint16_t extPowerReg2          = 0;
-uint16_t wbAllPowerReg1        = 0;
-uint16_t wbAllPowerReg2        = 0;
-uint16_t wbSolarPowerReg1      = 0;
-uint16_t wbSolarPowerReg2      = 0;
+DoubleRegister solarPowerReg;
+DoubleRegister gridPowerReg;
+DoubleRegister batPowerReg;
+DoubleRegister homePowerReg;
+DoubleRegister extPowerReg;
+DoubleRegister wbAllPowerReg;
+DoubleRegister wbSolarPowerReg;
 uint16_t wbCtrlReg             = 0;
 uint16_t batSocReg             = 0;
 uint16_t autarkieReg           = 0;
@@ -70,6 +70,14 @@ bool cbConn(IPAddress ip) {
 }
 
 void initModbus(const char * ipAdress){
+  solarPowerReg.dr = 0;
+  gridPowerReg.dr = 0;
+  batPowerReg.dr = 0;
+  homePowerReg.dr = 0;
+  extPowerReg.dr = 0;
+  wbAllPowerReg.dr = 0;
+  wbSolarPowerReg.dr = 0;
+  
   mbIP_E3DC.fromString(ipAdress);
   Serial.print("Modbus Init      :  wait...");
   if(INTERVALL_MODBUS > INTERVALL_HM) IntervalModbus = INTERVALL_HM;
@@ -77,19 +85,20 @@ void initModbus(const char * ipAdress){
   int timeout = 0;
   mb.master();
   delay(100);
-  while (!mb.isConnected(mbIP_E3DC) && timeout < MODBUS_TIMEOUT * 10) {
+  lastMbMillis = millis();
+  while (!mb.isConnected(mbIP_E3DC) && millis() - lastMbMillis < MODBUS_TIMEOUT*1000) {
+    lastMbMillis = millis();
     mb.connect(mbIP_E3DC);
     Serial.print(".");
     delay(100);
-    timeout++;
   }
-  if (timeout < MODBUS_TIMEOUT * 10){
+  if (millis() - lastMbMillis < MODBUS_TIMEOUT*1000){
     Serial.println("");
     Serial.println("Modbus status    :  connected");
     tftPrintInit("Modbus status  : connected");
 
     Serial.print("Modbus port      :  ");
-    Serial.println(MODBUSIP_PORT);
+    Serial.println(MODBUSTCP_PORT);
     modbusTimeout = false;
     modbusReady = true;
   }
@@ -105,14 +114,14 @@ void initModbus(const char * ipAdress){
 void closeModbus(IPAddress ip){
     Serial.print("Modbus close     :  ");
     if (mb.disconnect(ip)) Serial.println("ready");
-    else Serial.println("failed!"); 
+    else Serial.println("failed!");
     modbusTimeout = true;
     modbusReady = false;
 }
 void firstReadMagicByte(IPAddress ip){
   if(modbusTimeout == true)return;
   char out[24];
-    while(magicbyte != 0xE3DC ) {  
+    while(magicbyte != 0xE3DC ) {
     mb.readHreg(ip, REG_MAGIC -1, &magicbyte);
     delay(40);
     mb.task();
@@ -129,44 +138,31 @@ void mainTaskMbRead(){
     }
     mb.readHreg(mbIP_E3DC, REG_MAGIC -1, &magicbyte);delay(mbDelay);
     mb.task();
-    mb.readHreg(mbIP_E3DC, REG_SOLAR +REG_OFFSET, &solarPowerReg1);delay(mbDelay);
+    mb.readHreg(mbIP_E3DC, REG_SOLAR +REG_OFFSET, &solarPowerReg.sr[0], 2);delay(mbDelay);
     mb.task();
-    mb.readHreg(mbIP_E3DC, REG_SOLAR +REG_OFFSET +1, &solarPowerReg2);delay(mbDelay);
+    mb.readHreg(mbIP_E3DC, REG_GRID +REG_OFFSET, &gridPowerReg.sr[0], 2);delay(mbDelay);
     mb.task();
-    mb.readHreg(mbIP_E3DC, REG_GRID +REG_OFFSET, &gridPowerReg1);delay(mbDelay);
+    mb.readHreg(mbIP_E3DC, REG_BAT +REG_OFFSET, &batPowerReg.sr[0], 2);delay(mbDelay);
     mb.task();
-    mb.readHreg(mbIP_E3DC, REG_GRID +REG_OFFSET +1, &gridPowerReg2);delay(mbDelay);
-    mb.task();
-    mb.readHreg(mbIP_E3DC, REG_BAT +REG_OFFSET, &batPowerReg1);delay(mbDelay);
-    mb.task();
-    mb.readHreg(mbIP_E3DC, REG_BAT +REG_OFFSET +1, &batPowerReg2);delay(mbDelay);
-    mb.task();
-    mb.readHreg(mbIP_E3DC, REG_CON +REG_OFFSET, &homePowerReg1);delay(mbDelay);
-    mb.task();
-    mb.readHreg(mbIP_E3DC, REG_CON +REG_OFFSET +1, &homePowerReg2);delay(mbDelay);
+    mb.readHreg(mbIP_E3DC, REG_CON +REG_OFFSET, &homePowerReg.sr[0], 2);delay(mbDelay);
     mb.task();
     mb.readHreg(mbIP_E3DC, REG_BATSOC +REG_OFFSET, &batSocReg);delay(mbDelay);
     mb.task();
     mb.readHreg(mbIP_E3DC, REG_AUTARKIE +REG_OFFSET, &autarkieReg);delay(mbDelay);
     mb.task();
     #ifdef EXT_LM_USE
-      mb.readHreg(mbIP_E3DC, REG_EXT +REG_OFFSET, &extPowerReg1);delay(mbDelay);
+      mb.readHreg(mbIP_E3DC, REG_EXT +REG_OFFSET, &extPowerReg.sr[0], 2);delay(mbDelay);
       mb.task();
-      mb.readHreg(mbIP_E3DC, REG_EXT +REG_OFFSET +1, &extPowerReg2);delay(mbDelay);
-      mb.task();
-    #endif       
+
+#endif
     #ifdef EXT_WB_USE
-      mb.readHreg(mbIP_E3DC, REG_WB_ALL +REG_OFFSET, &wbAllPowerReg1);delay(mbDelay);
+      mb.readHreg(mbIP_E3DC, REG_WB_ALL +REG_OFFSET, &wbAllPowerReg.sr[0], 2);delay(mbDelay);
       mb.task();
-      mb.readHreg(mbIP_E3DC, REG_WB_ALL +REG_OFFSET +1, &wbAllPowerReg2);delay(mbDelay);
-      mb.task();
-      mb.readHreg(mbIP_E3DC, REG_WB_SOLAR +REG_OFFSET, &wbSolarPowerReg1);delay(mbDelay);
-      mb.task();
-      mb.readHreg(mbIP_E3DC, REG_WB_SOLAR +REG_OFFSET +1, &wbSolarPowerReg2);delay(mbDelay);
+      mb.readHreg(mbIP_E3DC, REG_WB_SOLAR +REG_OFFSET, &wbSolarPowerReg.sr[0], 2);delay(mbDelay);
       mb.task();
       mb.readHreg(mbIP_E3DC, REG_WB_CTRL +REG_OFFSET, &wbCtrlReg);delay(mbDelay);
       mb.task();
-    #endif       
+    #endif
     mbDebugCounter++;
     if(mbDebugCounter > 65530) mbDebugCounter = 0;
     if(INTERVALL_MODBUS >= 10 ) {
@@ -178,9 +174,7 @@ void pvTaskMbRead(){
       mb.connect(mbIP_E3DC);
       delay(mbDelay);
     }
-    mb.readHreg(mbIP_E3DC, REG_SOLAR +REG_OFFSET, &solarPowerReg1);delay(mbDelay);
-    mb.task();
-    mb.readHreg(mbIP_E3DC, REG_SOLAR +REG_OFFSET +1, &solarPowerReg2);delay(mbDelay);
+    mb.readHreg(mbIP_E3DC, REG_SOLAR +REG_OFFSET, &solarPowerReg.sr[0], 2);delay(mbDelay);
     mb.task();
     mb.readHreg(mbIP_E3DC, REG_PV_U1 +REG_OFFSET, &PV_U1_Reg);delay(mbDelay);
     mb.task();
@@ -199,21 +193,8 @@ void pvTaskMbRead(){
     }
 }
 void mbCalcInt16(uint16_t *reg1, int *value){
-    *value = *reg1; 
+    *value = *reg1;
     *reg1 = 0;
-}
-void mbCalcInt32(uint16_t *reg1, uint16_t *reg2, int *value){
-    int positiv, negativ;
-    if(*reg2 < 32768){
-      positiv = *reg2 * 65536 + *reg1;
-      negativ = 0;
-    } else {
-      negativ = 4294967296 - *reg2 * 65536 - *reg1; 
-      positiv = 0;
-    }
-    *value = positiv - negativ;
-    *reg1 = 0;
-    *reg2 = 0;
 }
 void mbCalcAutarkieEigenv(uint16_t *reg, int *Autarkie, int *Eigenverbrauch){
     *Autarkie = *reg / 256;
@@ -227,21 +208,21 @@ void mainMbRead(){
     #ifdef DEBUG
       Serial.printf("Reboot Counter   : %5d\n",readRebootCounter());
       Serial.printf("Debug  Counter   : %5d\n",mbDebugCounter);
-    #endif       
-    mbCalcInt32(&solarPowerReg1, &solarPowerReg2, &solarPower);
-    mbCalcInt32(&gridPowerReg1, &gridPowerReg2, &gridPower);
-    mbCalcInt32(&batPowerReg1, &batPowerReg2, &batPower);
-    mbCalcInt32(&homePowerReg1, &homePowerReg2, &homePower);
+    #endif
+    solarPower = solarPowerReg.dr;
+    gridPower = gridPowerReg.dr;
+    batPower = batPowerReg.dr;
+    homePower = homePowerReg.dr;
     mbCalcInt16(&batSocReg, &batSoc);
     mbCalcAutarkieEigenv(&autarkieReg, &autarkie, &eigenverbrauch);
     #ifdef EXT_LM_USE
-      mbCalcInt32(&extPowerReg1, &extPowerReg2, &extPower);
-    #endif       
+      mbCalcInt32(extPowerReg, &extPower);
+    #endif
     #ifdef EXT_WB_USE
-      mbCalcInt32(&wbAllPowerReg1, &wbAllPowerReg2, &wbAllPower);
-      mbCalcInt32(&wbSolarPowerReg1, &wbSolarPowerReg2, &wbSolarPower);
+      wbAllPower = wbAllPowerReg.dr;
+      wbSolarPower = wbSolarPowerReg.dr;
       mbCalcInt16(&wbCtrlReg, &wbCtrl);
-    #endif       
+    #endif
     Serial.printf("Power Solar      : %6d W\n",solarPower);
     Serial.printf("Power Grid       : %6d W\n",gridPower);
     Serial.printf("Power Batterie   : %6d W\n",batPower);
@@ -251,7 +232,7 @@ void mainMbRead(){
     Serial.printf("Eigenverbrauch   : %6d %%\n",eigenverbrauch);
     #ifdef EXT_LM_USE
       Serial.printf("Power Ext-LM     : %6d W\n",extPower);
-    #endif       
+    #endif
     #ifdef EXT_WB_USE
       Serial.printf("Power WB-All     : %6d W\n",wbAllPower);
       Serial.printf("Power WB-Solar   : %6d W\n",wbSolarPower);
@@ -268,7 +249,7 @@ void mainMbRead(){
       else Serial.printf("lädt nicht\n");
       if ((wbCtrl & WB_PHASES) == WB_PHASES) Serial.printf("WB-Phasen        :   1 von 3\n");
       else Serial.printf("WB-Phasen        :   3 von 3\n");
-    #endif       
+    #endif
 }
 void pvMbRead(){
     Serial.println("_______________________________________ ");
@@ -276,8 +257,8 @@ void pvMbRead(){
     pvTaskMbRead();
     #ifdef DEBUG
       Serial.printf("Reboot Counter   : %5d\n",readRebootCounter());
-    #endif       
-    mbCalcInt32(&solarPowerReg1, &solarPowerReg2, &solarPower);
+    #endif
+    solarPower = solarPowerReg.dr;
     mbCalcInt16(&PV_U1_Reg, &pvU1);
     mbCalcInt16(&PV_U2_Reg, &pvU2);
     mbCalcInt16(&PV_I1_Reg, &pvI1);
@@ -292,7 +273,7 @@ void pvMbRead(){
     Serial.printf("Power  String 1  : %6d W\n",pvP1);
     Serial.printf("Power  String 2  : %6d W\n",pvP2);
 }
-int checkMb(){
+void checkMb(){
     if (magicbyte != 0xE3DC){
       countMbReset++;
       Serial.printf("MB Reset  Count  : %6d\n",countMbReset);

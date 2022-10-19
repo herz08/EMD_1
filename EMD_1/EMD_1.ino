@@ -3,6 +3,10 @@
 #include <time.h>
 #include <TimeLib.h>
 
+#define SW_VERSION                  1.06
+#define SW_DATE                    "15.04.2022"
+#define TYPE                       "EMD-1 : "
+
 #include "parameter.h"
 #include "define.h"
 
@@ -16,7 +20,7 @@ void initPreferences(){
 // Variable
 int screenChoose = 1, screenActive = SCREEN_AKTUEL, mainScreen;
 bool drawScreen = NEW, drawContent = NEW, drawButton = NEW;
-bool enter = false;
+bool enter = false, firstBoot = true;
 bool wifiTimeout = false, noDeepSleep = false, screenSaveActiv = false;
 int ret, delayTime = 20;
 
@@ -57,7 +61,7 @@ void setup() {
   #ifdef DHT_USE
     initDHT();
     serialPrintDHT();
-  #endif       
+  #endif
   initModbus(IP_E3DC);
   firstReadMagicByte(mbIP_E3DC);
   if(wifiTimeout == true || modbusTimeout == true)screenActive = SCREEN_REFRESH;
@@ -65,15 +69,16 @@ void setup() {
   Serial.printf("Screen Save Time :  %i\n", readScreenSave());
   lastScreenMillis = millis();
   delay(4000);
+  firstBoot = false;
 }
 void loop() {
 
   if(checkTouch())checkStartScreen();
-  
+
   switch (screenActive) { // switch for main screen
     case SCREEN_MAIN: {
         drawScreenMain();
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if(touchField(Main_R1_S1)) screenActive = SCREEN_AKTUEL;
           if(touchField(Main_R1_S2)) screenActive = SCREEN_PV;
           if(touchField(Main_R2_S1)) screenActive = SCREEN_WETTER;
@@ -86,7 +91,7 @@ void loop() {
       }
     case SCREEN_SECOND: {
         drawScreenSecond();
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if(touchField(Main_R1_S1)) screenActive = SCREEN_AKTUEL;
           if(touchField(Main_R1_S2)) screenActive = SCREEN_PV;
           if(touchField(Main_R2_S1)) screenActive = SCREEN_UPDATE;
@@ -102,7 +107,7 @@ void loop() {
         if (!modbusReady){
           initModbus(IP_E3DC);
         }
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if (checkBackToMain()) break;
           if(touchField(Pos_Sym_PV)) {
             drawScreen = NEW;
@@ -123,13 +128,13 @@ void loop() {
             lastDhtMillis = millis();
             readDHT();
           }
-        #endif       
-        if (millis() - printMillis > 1000 || printMillis == 0){ 
-          printMillis = millis(); 
+        #endif
+        if (millis() - printMillis > 1000 || printMillis == 0){
+          printMillis = millis();
           #ifdef DEBUG
             overwriteLcdText(100, 269, 45, 11, ILI9341_DARKGREY, ILI9341_YELLOW, FontMonospaced_bold_13,"%5d",readRebootCounter());
             overwriteLcdText(100, 280, 45, 11, ILI9341_DARKGREY, ILI9341_YELLOW, FontMonospaced_bold_13,"%5d",mbDebugCounter);
-          #endif   
+          #endif
           overwriteLcdTextWorth(6, 93, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W", "%6d",solarPower);
           overwriteLcdTextWorth(148, 93, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W", "%6d",gridPower);
           overwriteLcdTextWorth(6, 284, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W", "%6d",batPower);
@@ -138,14 +143,14 @@ void loop() {
           tft.drawRGBBitmap(65, 198, percent16,16,13);
           tftPercentRect(34, 218, 30, 46, ILI9341_BLUE, ILI9341_WHITE, batSoc);
           tftPercentRect(92, 111, 22, 66, ILI9341_DARKGREY, ILI9341_WHITE, eigenverbrauch);
-          tftPercentRect(126, 111, 22, 66, ILI9341_DARKGREEN, ILI9341_WHITE, autarkie);          
+          tftPercentRect(126, 111, 22, 66, ILI9341_DARKGREEN, ILI9341_WHITE, autarkie);
           #ifdef EXT_LM_USE
-            overwriteLcdTextWorth(6, 194, 82, 11, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",extPower);
-          #endif       
+            overwriteLcdTextWorth(6, 194, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",extPower);
+          #endif
           #ifdef EXT_WB_USE
-            overwriteLcdTextWorth(148, 194, 82, 11, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",wbAllPower);
+            overwriteLcdTextWorth(148, 194, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",wbAllPower);
             if(wbSolarPower > 30)
-              overwriteLcdTextWorth(148, 208, 82, 11, ILI9341_ORANGE, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",wbSolarPower);
+              overwriteLcdTextWorth(148, 208, 82, 12, ILI9341_ORANGE, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",wbSolarPower);
             if      ((wbCtrl & WB_CONNECT) == WB_CONNECT)tft.drawRGBBitmap(168, 145, carConnect,52,28);
             else if ((wbCtrl & WB_LOCKED) == WB_LOCKED)tft.drawRGBBitmap(168, 145, carLocked,52,28);
             else if ((wbCtrl & WB_CHARGE) == WB_CHARGE){
@@ -160,7 +165,7 @@ void loop() {
             else if ((wbCtrl & WB_ERR) == WB_ERR)tft.fillRect(212,145,8,5, ILI9341_RED);
             else tft.fillRect(212,145,8,5, ILI9341_BLUE);
 
-          #endif       
+          #endif
           #ifdef DHT_USE
             if (readDhtPut() == 0){
               tft.fillRect(90,232,60,32, ILI9341_LIGHTGREY);
@@ -170,9 +175,9 @@ void loop() {
               overwriteLcdText(98, 260, 45, 11, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_13,"%4.0f",hum);
               tft.drawRGBBitmap(136, 251, percent,9,9);
             }
-          #endif       
+          #endif
           overwriteLcdText(60, 304, 140, 8, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_10,"%s %s", datum, zeit);
-          drawWeatherSingleIcon();    
+          drawWeatherSingleIcon();
         }
        break; // case SCREEN_AKTUEL
       }
@@ -181,15 +186,15 @@ void loop() {
         if (!modbusReady){
           initModbus(IP_E3DC);
         }
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if (checkBackToMain()) break;
         }
         if ((millis() - lastMbMillis > IntervalModbus * 1000) || lastMbMillis == 0 ) {
           lastMbMillis = millis();
           pvMbRead();
         }
-        if (millis() - printMillis > 1000 || printMillis == 0){ 
-          printMillis = millis();        
+        if (millis() - printMillis > 1000 || printMillis == 0){
+          printMillis = millis();
           overwriteLcdText(80, 117, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"%6d W",solarPower);
           overwriteLcdText(20, 213, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"%5d V",pvU1);
           overwriteLcdText(145, 213, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"%5d V",pvU2);
@@ -206,7 +211,7 @@ void loop() {
         if (!weatherCallReady){
           displayWeather();
         }
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if (checkBackToMain()) break;
           if(touchField(Pos_newCall)){
             weatherCallReady = false;
@@ -218,8 +223,8 @@ void loop() {
           weatherCallReady = false;
           drawScreen = NEW;
         }
-        if (millis() - printMillis > 1000 || printMillis == 0){ 
-          printMillis = millis();        
+        if (millis() - printMillis > 1000 || printMillis == 0){
+          printMillis = millis();
           serialPrintClock();
           overwriteLcdText(60, 300, 140, 8, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_10,"%s %s", datum, zeit);
         }
@@ -227,7 +232,7 @@ void loop() {
       }
     case SCREEN_EINST: {
         drawScreenEinst();
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if (checkBackToMain()) break;
           //Zeiteinstellung
           if(touchField(Small_R2_S2)) {
@@ -298,7 +303,7 @@ void loop() {
       }
     case SCREEN_REFRESH: {
         drawScreenRefresh();
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if (checkBackToMain()) break;
           //ESP restart
           if(touchField(Small_R3_S1)) {
@@ -324,7 +329,7 @@ void loop() {
              mbSymbol(POS_WWW, 2);
              drawScreen = NEW;
         }
-          //Modbus restart 
+          //Modbus restart
           if(touchField(Small_R5_S1)) {
              tft.drawRect(touchXmin[Small_R5_S1]-1, touchYmin[Small_R5_S1]-1, 42, 42, ILI9341_GREEN);
              tft.drawRect(touchXmin[Small_R5_S1], touchYmin[Small_R5_S1], 40, 40, ILI9341_GREEN);
@@ -336,7 +341,7 @@ void loop() {
              mbSymbol(POS_WWW, 2);
              drawScreen = NEW;
           }
-          //SD-Karte restart 
+          //SD-Karte restart
           if(touchField(Small_R6_S1)) {
              tft.drawRect(touchXmin[Small_R6_S1]-1, touchYmin[Small_R6_S1]-1, 42, 42, ILI9341_GREEN);
              tft.drawRect(touchXmin[Small_R6_S1], touchYmin[Small_R6_S1], 40, 40, ILI9341_GREEN);
@@ -361,9 +366,9 @@ void loop() {
       }
     case SCREEN_UPDATE: {
       bool afterUpdate = true;
-        if (Touch_pressed == true) { 
+        if (Touch_pressed == true) {
           if (checkBackToMain()) break;
-          //SD-Karte restart 
+          //SD-Karte restart
           if(touchField(Small_R3_S1)) {
              tft.drawRect(touchXmin[Small_R3_S1]-1, touchYmin[Small_R3_S1]-1, 42, 42, ILI9341_GREEN);
              tft.drawRect(touchXmin[Small_R3_S1], touchYmin[Small_R3_S1], 40, 40, ILI9341_GREEN);
@@ -411,7 +416,7 @@ void loop() {
         }
         if (!afterUpdate){
           afterUpdate = READY;
-          if (returnUpdate = 1){
+          if (returnUpdate == 1){
             tft.drawRect(touchXmin[Small_R2_S2]-1, touchYmin[Small_R2_S2]-1, 170, 42, ILI9341_GREEN);
             tft.fillRect(touchXmin[Small_R2_S2], touchYmin[Small_R2_S2], 168, 40, ILI9341_WHITE);
             printLcdText(touchXmin[Small_R2_S2]+8, touchYmin[Small_R2_S2]+25, ILI9341_DARKGREY, FontSansSerif_plain_11, updateInfo1);
@@ -422,7 +427,7 @@ void loop() {
             delay(3000);
             rebootEspWithReason("Update successfully reboot now!");
           }
-          else if (returnUpdate = -1){
+          else if (returnUpdate == -1){
             tft.drawRect(touchXmin[Small_R2_S2]-1, touchYmin[Small_R2_S2]-1, 170, 42, ILI9341_RED);
             tft.fillRect(touchXmin[Small_R2_S2], touchYmin[Small_R2_S2], 168, 40, ILI9341_WHITE);
             printLcdText(touchXmin[Small_R2_S2]+8, touchYmin[Small_R2_S2]+25, ILI9341_DARKGREY, FontSansSerif_plain_11, updateInfo1);
@@ -468,11 +473,11 @@ void loop() {
       sendHM(NO_PRINT, ISE_S10_CON, "S10_Home", "%i", homePower);
       sendHM(NO_PRINT, ISE_S10_BATSOC, "S10_SOC", "%i", batSoc);
       sendHM(NO_PRINT, ISE_S10_AUTARKIE, "S10_Autarkie", "%i", autarkie);
-      sendHM(NO_PRINT, ISE_S10_EIGEN, "S10_Eigenverbrauch", "%i", eigenverbrauch);    
+      sendHM(NO_PRINT, ISE_S10_EIGEN, "S10_Eigenverbrauch", "%i", eigenverbrauch);
     }
   #endif
 
-  // Screen Save 
+  // Screen Save
   if(digitalRead(PIR_PIN) == HIGH) {
     checkStartScreen();
   }
@@ -484,7 +489,7 @@ void loop() {
       Serial.println("Screen Save      :  Aktiv");
     }
   }
-  
+
   #ifdef OAT_USE
     if (!wifiTimeout) ArduinoOTA.handle();
   #endif
