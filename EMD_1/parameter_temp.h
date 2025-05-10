@@ -120,6 +120,9 @@
 
 //#######################################
 // Homematic Parameter
+//#define WEATHER_GUI_USE                                    // Aktivieren für Wetter-Anzeige
+// Wichtig Aktuell 10.05.2025 ist die Füntion defekt und kann nicht aktiviert werden!!!
+
 #define WEATHER_KEY                 "12345678910111213141516171819202"   //https://openweathermap.org API Key (Kostenlos 10.000 Abfragen per Monat)
 #define WEATHER_ID_USE                                      // Aktiv wenn City-ID genutzt werden soll
 #define WEATHER_ID                  2950159                 // City-ID

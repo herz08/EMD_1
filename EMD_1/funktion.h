@@ -113,6 +113,7 @@ void drawScreenPV(){
       delay(200);
     }
 }
+#ifdef WEATHER_GUI_USE
 void drawScreenWetter(){
     if(!drawScreen){
       Serial.println("Display Screen     :  Wetter");
@@ -125,6 +126,7 @@ void drawScreenWetter(){
       delay(200);
     }
 }
+#endif // WEATHER_GUI_USE
 void drawScreenEinst(){
     if(!drawScreen){
       drawMainScreen();
@@ -136,8 +138,8 @@ void drawScreenEinst(){
       drawBitmapRGB(Small_Menue, menuEinstSmall,40,40);
       drawBitmapRGB(Small_Back, menuBackSmall,40,40);
       drawBitmapRGB(Small_R2_S2, screenRotation,40,40);
-      drawBitmapRGB(Small_R3_S2, menuSommerSmall,40,40);
-      drawBitmapRGB(Small_R3_S1, menuWinterSmall,40,40);
+      //drawBitmapRGB(Small_R3_S2, menuSommerSmall,40,40);
+      //drawBitmapRGB(Small_R3_S1, menuWinterSmall,40,40);
       drawBitmapRGB(Small_R4_S2, menuOkSmall,40,40);
       drawBitmapRGB(Small_R4_S1, menuNOkSmall,40,40);
       drawBitmapRGB(Small_R5_S2, menuPlusSmall,40,40);

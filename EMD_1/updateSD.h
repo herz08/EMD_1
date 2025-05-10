@@ -1,3 +1,6 @@
+#ifndef __UPDATESD_H_
+#define __UPDATESD_H_
+
 
 /* 
  Name:      SD_Update.ino
@@ -114,3 +117,4 @@ bool checkSdCard(){
   if (SD.exists("/"))return true;
   else return false;
 }
+#endif // __UPDATESD_H_
