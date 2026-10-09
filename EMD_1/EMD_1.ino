@@ -1,10 +1,11 @@
+#include <Arduino.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <time.h>
-#include <TimeLib.h>
+//#include <time.h>
+//#include <TimeLib.h>
 
-#define SW_VERSION                  1.06
-#define SW_DATE                    "15.04.2022"
+#define SW_VERSION                  1.11
+#define SW_DATE                    "10.05.2023"
 #define TYPE                       "EMD-1 : "
 
 #include "parameter.h"
@@ -27,8 +28,10 @@ int ret, delayTime = 20;
 #include "display.h"
 #include "init.h"
 #include "ntp.h"
-#include "update.h"
-#include "weatherGui.h"
+#include "updateSD.h"
+#ifdef WEATHER_GUI_USE
+  #include "weatherGui.h"
+#endif // WEATHER_GUI_USE
 #ifdef HM_USE
   #include "homematic.h"
 #endif
@@ -66,7 +69,7 @@ void setup() {
   firstReadMagicByte(mbIP_E3DC);
   if(wifiTimeout == true || modbusTimeout == true)screenActive = SCREEN_REFRESH;
   readPIR();
-  Serial.printf("Screen Save Time :  %i\n", readScreenSave());
+  Serial.printf("Screen Save Time   :  %i\n", readScreenSave());
   lastScreenMillis = millis();
   delay(4000);
   firstBoot = false;
@@ -145,19 +148,21 @@ void loop() {
           tftPercentRect(92, 111, 22, 66, ILI9341_DARKGREY, ILI9341_WHITE, eigenverbrauch);
           tftPercentRect(126, 111, 22, 66, ILI9341_DARKGREEN, ILI9341_WHITE, autarkie);
           #ifdef EXT_LM_USE
-            overwriteLcdTextWorth(6, 194, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",extPower);
+            overwriteLcdTextWorth(6, 194, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",extPower * -1);
           #endif
           #ifdef EXT_WB_USE
             overwriteLcdTextWorth(148, 194, 82, 12, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",wbAllPower);
             if(wbSolarPower > 30)
               overwriteLcdTextWorth(148, 208, 82, 12, ILI9341_ORANGE, ILI9341_WHITE, FontMonospaced_bold_16,"W","%6d",wbSolarPower);
-            if      ((wbCtrl & WB_CONNECT) == WB_CONNECT)tft.drawRGBBitmap(168, 145, carConnect,52,28);
-            else if ((wbCtrl & WB_LOCKED) == WB_LOCKED)tft.drawRGBBitmap(168, 145, carLocked,52,28);
-            else if ((wbCtrl & WB_CHARGE) == WB_CHARGE){
+            else
+              tft.fillRect(148, 195, 82, 16, ILI9341_WHITE);
+            if ((wbCtrl & WB_CHARGE) == WB_CHARGE){
               if      (wbAllPower <= 200 && wbSolarPower >=200)tft.drawRGBBitmap(168, 145, carSun,52,28);
               else if (wbAllPower >= 200 && wbSolarPower <=200)tft.drawRGBBitmap(168, 145, carGridRed,52,28);
               else tft.drawRGBBitmap(168, 145, carMix,52,28);
             }
+            else if ((wbCtrl & WB_LOCKED) == WB_LOCKED)tft.drawRGBBitmap(168, 145, carLocked,52,28);
+            else if ((wbCtrl & WB_CONNECT) == WB_CONNECT)tft.drawRGBBitmap(168, 145, carConnect,52,28);
             else{
               tft.drawRGBBitmap(168, 145, car,52,28);
             }
@@ -177,7 +182,9 @@ void loop() {
             }
           #endif
           overwriteLcdText(60, 304, 140, 8, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_10,"%s %s", datum, zeit);
+          #ifdef WEATHER_GUI_USE
           drawWeatherSingleIcon();
+          #endif // WEATHER_GUI_USE
         }
        break; // case SCREEN_AKTUEL
       }
@@ -207,6 +214,7 @@ void loop() {
         break; // case SCREEN_KABLE_INFO
       }
     case SCREEN_WETTER: {
+        #ifdef WEATHER_GUI_USE
         drawScreenWetter();
         if (!weatherCallReady){
           displayWeather();
@@ -228,13 +236,14 @@ void loop() {
           serialPrintClock();
           overwriteLcdText(60, 300, 140, 8, ILI9341_DARKGREY, ILI9341_WHITE, FontMonospaced_bold_10,"%s %s", datum, zeit);
         }
+        #endif // WEATHER_GUI_USE
        break; // case SCREEN_WETTER
       }
     case SCREEN_EINST: {
         drawScreenEinst();
         if (Touch_pressed == true) {
           if (checkBackToMain()) break;
-          //Zeiteinstellung
+          //Bildschirmdrehung
           if(touchField(Small_R2_S2)) {
             changeRotation();
             tft.fillRect(106, 76, 122, 40, ILI9341_RED);
@@ -244,11 +253,12 @@ void loop() {
              delay(800);
              ESP.restart();
           }
-          if(touchField(Small_R3_S1) || touchField(Small_R3_S2)) {
+          // Zeiteinstellung
+          /*if(touchField(Small_R3_S1) || touchField(Small_R3_S2)) {
              timeDiff = changeTimeDiff();
              drawContent = NEW;
              delay(600);
-          }
+          }*/
           //Lichtsensor
           if(touchField(Small_R4_S1) || touchField(Small_R4_S2)) {
              pirUse = changePIR();
@@ -281,10 +291,10 @@ void loop() {
           printLcdText(114, 93, ILI9341_DARKGREY, FontSansSerif_plain_11,"Screen Rotation");
           if (readRotation() == 2) printLcdText(114, 105, ILI9341_DARKGREY, FontSansSerif_plain_11,"180 Grad");
           else printLcdText(114, 105, ILI9341_DARKGREY, FontSansSerif_plain_11,"0 Grad");
-          tft.fillRect(106, 124, 122, 40, ILI9341_WHITE);
+          /*tft.fillRect(106, 124, 122, 40, ILI9341_WHITE);
           printLcdText(114, 141, ILI9341_DARKGREY, FontSansSerif_plain_11,"Zeiteinstellung");
           if(timeDiff == 7200)printLcdText(120, 159, ILI9341_DARKGREY, FontSansSerif_plain_11,"Sommer Aktiv");
-          if(timeDiff == 3600)printLcdText(120, 159, ILI9341_DARKGREY, FontSansSerif_plain_11,"Winter Aktiv");
+          if(timeDiff == 3600)printLcdText(120, 159, ILI9341_DARKGREY, FontSansSerif_plain_11,"Winter Aktiv");*/
           tft.fillRect(106, 172, 122, 40, ILI9341_WHITE);
           printLcdText(114, 189, ILI9341_DARKGREY, FontSansSerif_plain_11,"Lichtsensor");
           if(readPIRuse() == 1)printLcdText(114, 201, ILI9341_DARKGREY, FontSansSerif_plain_11,"PIR Aktiv");
@@ -410,7 +420,7 @@ void loop() {
               tft.fillRect(touchXmin[Small_R3_S2], touchYmin[Small_R3_S2], 168, 40, ILI9341_WHITE);
               printLcdText(touchXmin[Small_R3_S2]+8, touchYmin[Small_R3_S2]+25, ILI9341_DARKGREY, FontSansSerif_plain_11, "Beispiel:");
               tft.fillRect(touchXmin[Small_R4_S2], touchYmin[Small_R4_S2], 168, 40, ILI9341_WHITE);
-              printLcdText(touchXmin[Small_R4_S2]+8, touchYmin[Small_R4_S2]+25, ILI9341_DARKGREY, FontSansSerif_plain_11, "/update/EMD_1-04.bin");
+              printLcdText(touchXmin[Small_R4_S2]+8, touchYmin[Small_R4_S2]+25, ILI9341_DARKGREY, FontSansSerif_plain_11, "/update/EMD_1-08.bin");
             }
           }
         }
@@ -486,7 +496,7 @@ void loop() {
       screenSaveActiv = ON;
       screenActive = SCREEN_SAVE;
       drawScreen = NEW;
-      Serial.println("Screen Save      :  Aktiv");
+      Serial.println("Screen Save        :  Aktiv");
     }
   }
 
