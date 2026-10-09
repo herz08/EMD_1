@@ -12,6 +12,7 @@
 #include <ModbusIP_ESP8266.h>
 
 bool modbusTimeout = false, modbusReady = false;
+bool modbusDataValid = false;
 
 ModbusIP mb;  //ModbusIP
 IPAddress mbIP_E3DC;
@@ -77,6 +78,7 @@ void initModbus(const char * ipAdress){
   extPowerReg.dr = 0;
   wbAllPowerReg.dr = 0;
   wbSolarPowerReg.dr = 0;
+  modbusDataValid = false;
   
   mbIP_E3DC.fromString(ipAdress);
   Serial.print("Modbus Init        :  wait...");
@@ -116,6 +118,7 @@ void closeModbus(IPAddress ip){
     else Serial.println("failed!");
     modbusTimeout = true;
     modbusReady = false;
+    modbusDataValid = false;
 }
 void firstReadMagicByte(IPAddress ip){
   if(modbusTimeout == true)return;
@@ -203,24 +206,58 @@ void mbCalcAutarkieEigenv(uint16_t *reg, int *Autarkie, int *Eigenverbrauch){
 void mainMbRead(){
     Serial.println("_______________________________________ ");
     serialPrintClock();
+
+    int oldSolarPower = solarPower;
+    int oldGridPower = gridPower;
+    int oldBatPower = batPower;
+    int oldHomePower = homePower;
+    int oldBatSoc = batSoc;
+    int oldAutarkie = autarkie;
+    int oldEigenverbrauch = eigenverbrauch;
+
     mainTaskMbRead();
     #ifdef DEBUG
       Serial.printf("Reboot Counter     :  %5d\n",readRebootCounter());
       Serial.printf("Debug  Counter     :  %5d\n",mbDebugCounter);
     #endif
-    solarPower = solarPowerReg.dr;
-    gridPower = gridPowerReg.dr;
-    batPower = batPowerReg.dr;
-    homePower = homePowerReg.dr;
-    mbCalcInt16(&batSocReg, &batSoc);
-    mbCalcAutarkieEigenv(&autarkieReg, &autarkie, &eigenverbrauch);
+    if (magicbyte == 0xE3DC) {
+      solarPower = solarPowerReg.dr;
+      gridPower = gridPowerReg.dr;
+      batPower = batPowerReg.dr;
+      homePower = homePowerReg.dr;
+      mbCalcInt16(&batSocReg, &batSoc);
+      mbCalcAutarkieEigenv(&autarkieReg, &autarkie, &eigenverbrauch);
+      modbusDataValid = true;
+    }
+    else {
+      solarPower = oldSolarPower;
+      gridPower = oldGridPower;
+      batPower = oldBatPower;
+      homePower = oldHomePower;
+      batSoc = oldBatSoc;
+      autarkie = oldAutarkie;
+      eigenverbrauch = oldEigenverbrauch;
+      modbusDataValid = false;
+    }
     #ifdef EXT_LM_USE
-      extPower = extPowerReg.dr;
+      if (magicbyte == 0xE3DC) {
+        extPower = extPowerReg.dr;
+      }
+      else {
+        extPower = 0;
+      }
     #endif
     #ifdef EXT_WB_USE
-      wbAllPower = wbAllPowerReg.dr;
-      wbSolarPower = wbSolarPowerReg.dr;
-      mbCalcInt16(&wbCtrlReg, &wbCtrl);
+      if (magicbyte == 0xE3DC) {
+        wbAllPower = wbAllPowerReg.dr;
+        wbSolarPower = wbSolarPowerReg.dr;
+        mbCalcInt16(&wbCtrlReg, &wbCtrl);
+      }
+      else {
+        wbAllPower = 0;
+        wbSolarPower = 0;
+        wbCtrl = 0;
+      }
     #endif
     Serial.printf("Power Solar        :  %6d W\n",solarPower);
     Serial.printf("Power Grid         :  %6d W\n",gridPower);
@@ -253,17 +290,38 @@ void mainMbRead(){
 void pvMbRead(){
     Serial.println("_______________________________________ ");
     serialPrintClock();
+    int oldSolarPower = solarPower;
+    int oldPvU1 = pvU1;
+    int oldPvU2 = pvU2;
+    int oldPvI1 = pvI1;
+    int oldPvI2 = pvI2;
+    int oldPvP1 = pvP1;
+    int oldPvP2 = pvP2;
+
     pvTaskMbRead();
     #ifdef DEBUG
       Serial.printf("Reboot Counter     :  %5d\n",readRebootCounter());
     #endif
-    solarPower = solarPowerReg.dr;
-    mbCalcInt16(&PV_U1_Reg, &pvU1);
-    mbCalcInt16(&PV_U2_Reg, &pvU2);
-    mbCalcInt16(&PV_I1_Reg, &pvI1);
-    mbCalcInt16(&PV_I2_Reg, &pvI2);
-    mbCalcInt16(&PV_P1_Reg, &pvP1);
-    mbCalcInt16(&PV_P2_Reg, &pvP2);
+    if (magicbyte == 0xE3DC) {
+      solarPower = solarPowerReg.dr;
+      mbCalcInt16(&PV_U1_Reg, &pvU1);
+      mbCalcInt16(&PV_U2_Reg, &pvU2);
+      mbCalcInt16(&PV_I1_Reg, &pvI1);
+      mbCalcInt16(&PV_I2_Reg, &pvI2);
+      mbCalcInt16(&PV_P1_Reg, &pvP1);
+      mbCalcInt16(&PV_P2_Reg, &pvP2);
+      modbusDataValid = true;
+    }
+    else {
+      solarPower = oldSolarPower;
+      pvU1 = oldPvU1;
+      pvU2 = oldPvU2;
+      pvI1 = oldPvI1;
+      pvI2 = oldPvI2;
+      pvP1 = oldPvP1;
+      pvP2 = oldPvP2;
+      modbusDataValid = false;
+    }
     Serial.printf("Power Solar        :  %6d W\n",solarPower);
     Serial.printf("Volage String 1    :  %6d V\n",pvU1);
     Serial.printf("Volage String 2    :  %6d V\n",pvU2);
