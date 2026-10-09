@@ -64,6 +64,10 @@ void drawWeatherIconSmall(char *id,int x, int y){
   else if (strcmp(id, "50n")==0) tft.drawRGBBitmap(x, y, wetterSmall50n,40,40);
 }
 
+bool weatherKeyConfigured() {
+  return strcmp(WEATHER_KEY, "12345678910111213141516171819202") != 0;
+}
+
 // OpenWeatherMap OneCallApi Counter
 int addCallCount(){
   int Month = makeMonth();
@@ -142,7 +146,7 @@ void startWeatherCall(){
 
 }
 void displayWeather() {
-  if(strcmp(WEATHER_KEY, "12345678910111213141516171819202")==0){
+  if(!weatherKeyConfigured()){
     tft.drawRGBBitmap(30, 30, wetter01d,80,80);
     tft.drawRGBBitmap(130, 30, wetter10d,80,80);
     printLcdText(20,130, ILI9341_DARKGREY, FontSansSerif_plain_11,"Es ist kein Key gesetzt.");
@@ -311,7 +315,7 @@ void displayWeather() {
 void drawWeatherSingleIcon() {
       if (millis() - weatherMillis > WEATHER_INTERVALL *60*1000 || weatherMillis == 0){
         weatherMillis = millis();
-        if(strcmp(WEATHER_KEY, "12345678910111213141516171819202")==1){
+        if(weatherKeyConfigured()){
           // Set Ecludes
           myEXCLUDES = EXCL_H+EXCL_M+EXCL_D+EXCL_A;
 
